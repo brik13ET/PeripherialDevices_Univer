@@ -6,31 +6,34 @@ public read
 public replace
 public stoi
 public strlen
+public stox
+public stoupper
+public stolower
+public to_lower
+public to_upper
+public itos
 
 ; test
 public stof
 
 ; todo
-public stox
-public itos
 public xtos
 public ftos
 
 cr EQU 0Dh
 lf EQU 0Ah
-ch_nil equ "0"
+case_delta equ "a" - "A"
 
 LOCALS @@
 
 .data
-	int_part dw 0
-	point_part dw 0
-	base dw 10
-	tmp dw 0
+	hex_alph db "0123456789ABCDEF"
 
 ; calling conv: args in stack, return in ax
 
 .code
+; in: string
+; out: integer
 stoi:
 	push bp
 	mov bp, sp
@@ -51,7 +54,7 @@ stoi:
 		cmp cl, "$"
 		je @@ENDW
 
-		sub cl, ch_nil
+		sub cl, "0"
 		
 		cmp cl, 10
 		jl @@ELSE
@@ -59,7 +62,7 @@ stoi:
 			jmp @@ENDW
 
 	@@ELSE:
-			imul [base]
+			imul ax, 10
 			add ax, cx
 		inc bx
 	jmp @@WHILE
@@ -78,16 +81,21 @@ stoi:
 	pop bp
 	retf
 
-; ret float in st(0)
+; in: string
+; out: float
+; ret in st(0)
 stof:
 	push bp
 	mov bp, sp
+	sub sp, 4
 	push bx
 	push cx
 	push dx
+
 	xor cx,cx
 	mov bx, [bp+6]
 	mov cl, ds:[bx]
+	mov [bp], 10
 	fldz
 	@@WHILE: 
 	cmp cl, "$" 
@@ -99,15 +107,15 @@ stof:
 	cmp cl, " " 
 	je @@ENDW
 		mov cl, ds:[bx]
-		sub cl, ch_nil
+		sub cl, "0"
 		cmp cl, 10
 		jl @@ELSE
 			stc
 			jmp @@ENDW
 		@@ELSE:
-			mov [tmp], cx
-			fimul base
-			fiadd tmp
+			mov [bp - 2], cx
+			fimul [bp]
+			fiadd [bp - 2]
 		inc bx
 		mov cl, ds:[bx]
 		jmp @@WHILE
@@ -123,22 +131,22 @@ stof:
 		mov cl, ds:[bx]
 		cmp cl, "$"
 		je @@ENDW1
-			sub cl, ch_nil
+			sub cl, "0"
 			
 			cmp cl, 10
 			jl @@ELSE1
 				stc
 				jmp @@ENDW1
 		@@ELSE1:
-				mov [tmp], cx
-				fiadd tmp
-				fidiv base
+				mov [bp - 2], cx
+				fiadd [bp - 2]
+				fidiv [bp]
 			inc bx
 			mov cl, ds:[bx]
 		jmp @@WHILE1
 	@@ENDW1:
 	faddp
-	mov bx, ss:[bp+6]
+	mov bx, [bp+6]
 	mov cl, ds:[bx]
 	cmp cl, "-"
 	jne @@ENDIF
@@ -147,9 +155,12 @@ stof:
 	pop dx
 	pop cx
 	pop bx
+	add sp, 4
 	pop bp
 	retf
 
+; in: string
+; out: uint
 strlen:
 	push bp
 	mov bp, sp
@@ -179,6 +190,8 @@ strlen:
 	pop bp
 	retf
 
+; in: string
+; out: void
 print:
 	push bp
 	mov bp, sp
@@ -210,6 +223,7 @@ read:
 	pop ax
 	pop bp
 	retf
+
 ; in: string, char, char
 ; out: void
 replace:
@@ -241,19 +255,273 @@ replace:
 	pop bp
 	retf
 
+; in: string with hex num
+; out: num
 stox:
+	push bp
+	mov bp, sp
+	push bx
+	push cx
+	push dx
+	; push ds
 
+	mov bx, [bp+6]
+
+	; mov ax, @data
+	; mov ds, ax
+	
+	xor cx,cx
+	xor ax,ax
+	xor dx,dx
+	@@WHILE:
+		mov cl, ds:[bx]
+		cmp cl, "$"
+		je @@ENDW
+
+		push cx
+		call far ptr to_lower
+		add sp, 2
+
+		cmp al, "9"
+		jg @@NAN
+		cmp al, "0"
+		jl @@NAN
+
+		sub al, "0"
+		jmp @@ENDIF
+
+	@@NAN:
+
+		cmp al, "a"
+		jl @@BAD
+		cmp al, "f"
+		jg @@BAD
+
+		sub al, 87
+		jmp @@ENDIF
+
+	@@BAD:
+		stc
+		jmp @@ENDW
+
+	@@ENDIF:
+		imul dx, dx, 10h
+		add dx, ax
+
+	inc bx
+	jmp @@WHILE
+	@@ENDW:
+	mov ax, dx
+	mov bx, ss:[bp+6]
+	mov cl, ds:[bx]
+	cmp cl, "-"
+	jne @@ENDIF1
+		neg ax
+	@@ENDIF1:
+	
+	; pop ds
+	pop dx
+	pop cx
+	pop bx
+	pop bp
 	retf
 
+; in: short, buf ptr, buf size
+; out: string in buf
 itos:
+	push bp
+	mov bp, sp
+	sub sp, 2
+	push bx
+	push cx
+	push dx
+	push si
+	push di
 
+	xor di, di
+	mov [bp], 10
+	mov ax, [bp + 10] ; short
+	mov bx, [bp + 8] ; buf ptr
+	mov cx, [bp + 6] ; buf size
+
+	mov di, cx
+	@@while:
+	cmp di, 0
+	jl @@endw
+	test ax, ax
+	jz @@endw
+	
+	push ds
+	mov dx, @data
+	mov ds, dx
+
+	xor dx, dx
+
+	div [bp]
+	mov si, dx
+	mov dh, [hex_alph + si]
+	pop ds
+	mov [bx + di], dh
+
+	dec di
+	jmp @@while
+	@@endw:
+
+	lea ax, [bx + di + 1]
+
+	pop di
+	pop si
+	pop dx
+	pop cx
+	pop bx
+	add sp, 2
+	pop bp
 	retf
 
 xtos:
+	push bp
+	mov bp, sp
+	sub sp, 2
+	push bx
+	push cx
+	push dx
+	push si
+	push di
+
+	xor di, di
+
+	mov [bp], 10
+	mov ax, [bp + 10] ; short
+	mov bx, [bp + 8] ; buf ptr
+	mov cx, [bp + 6] ; buf size
+	mov di, cx
+
+	push ds
+	mov dx, @data
+	mov ds, dx
+	mov [bp],10h
+	pop ds
+	@@while:
+	cmp di, 0
+	jl @@endw
+	test ax, ax
+	jz @@endw
 	
+	push ds
+	mov dx, @data
+	mov ds, dx
+	mov [bp],10h
+	xor dx, dx
+
+	div [bp]
+	mov si, dx
+	mov dh, [hex_alph + si]
+	pop ds
+	mov [bx + di], dh
+
+	dec di
+	jmp @@while
+	@@endw:
+
+	lea ax, [bx + di + 1]
+	pop ds
+
+	pop di
+	pop si
+	pop dx
+	pop cx
+	pop bx
+	pop bp
 	retf
 
 ftos:
 	
 	retf
+
+; in: char
+; out: char
+to_lower:
+	push bp
+	mov bp, sp
+
+	xor ax,ax
+	mov al, ss:[bp + 6]
+
+	cmp al, "Z"
+	jg @@ENDIF
+	cmp al, "A"
+	jl @@ENDIF
+	add al, case_delta
+	@@ENDIF:
+	pop bp
+	retf
+
+; in: char
+; out: char
+to_upper:
+	push bp
+	mov bp, sp
+
+	xor ax,ax
+	mov al, ss:[bp + 6]
+
+	cmp al, "a"
+	jl @@ENDIF
+	cmp al, "z"
+	jg @@ENDIF
+	sub al, case_delta
+	@@ENDIF:
+	pop bp
+	retf
+
+; in: string
+; out: void
+stolower:
+	push bp
+	mov bp, sp
+	push bx
+	mov bx, [bp + 6]
+	@@WHILE:
+	mov al, [bx]
+	cmp al, "$"
+	je @@ENDW
+	push ax
+	call far ptr to_lower
+	add sp, 2
+	jc @@ENDW
+
+	mov [bx], al
+
+	inc bx
+	jmp @@WHILE
+	@@ENDW:
+	pop bx
+	pop bp
+	retf
+
+; in: string
+; out: void
+stoupper:
+	push bp
+	mov bp, sp
+	push bx
+	mov bx, [bp + 6]
+	@@WHILE:
+	mov al, [bx]
+	cmp al, "$"
+	je @@ENDW
+	push ax
+	call far ptr to_upper
+	add sp, 2
+	jc @@ENDW
+
+	mov [bx], al
+
+	inc bx
+	jmp @@WHILE
+	@@ENDW:
+	pop bx
+	pop bp
+	retf
+
 end
