@@ -378,6 +378,8 @@ itos:
 	pop bp
 	retf
 
+; in: short, buf ptr, buf size
+; out: string in buf
 xtos:
 	push bp
 	mov bp, sp
@@ -389,18 +391,12 @@ xtos:
 	push di
 
 	xor di, di
-
-	mov [bp], 10
+	mov [bp], 10h
 	mov ax, [bp + 10] ; short
 	mov bx, [bp + 8] ; buf ptr
 	mov cx, [bp + 6] ; buf size
-	mov di, cx
 
-	push ds
-	mov dx, @data
-	mov ds, dx
-	mov [bp],10h
-	pop ds
+	mov di, cx
 	@@while:
 	cmp di, 0
 	jl @@endw
@@ -410,7 +406,7 @@ xtos:
 	push ds
 	mov dx, @data
 	mov ds, dx
-	mov [bp],10h
+
 	xor dx, dx
 
 	div [bp]
@@ -424,13 +420,13 @@ xtos:
 	@@endw:
 
 	lea ax, [bx + di + 1]
-	pop ds
 
 	pop di
 	pop si
 	pop dx
 	pop cx
 	pop bx
+	add sp, 2
 	pop bp
 	retf
 
