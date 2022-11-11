@@ -1,6 +1,8 @@
 .model small
 .286
 
+INCLUDE sys.inc
+
 public print
 public read
 public replace
@@ -430,8 +432,73 @@ xtos:
 	pop bp
 	retf
 
+
+; in: float, buf, line
+; out: buf
 ftos:
-	
+	push bp
+	mov bp, sp
+	push sp
+	sub sp, 10 ; 3 variables in stack for 6 bytes
+	push bx
+	push cx
+	push dx
+	push si
+	push di
+	push es
+
+	mov ss:[bp-2], 0010h ; base
+	mov ss:[bp-4], 0000h ; whole
+	mov ss:[bp-6], 0000h ; point
+	mov ss:[bp - 8], 00000000h ; tmp
+
+	mov bx, ss:[bp + 10] ; single precision float
+	mov di, ss:[bp + 8] ; buf ptr
+	mov si, ss:[bp + 6] ; buf siz
+
+	push bx
+	mov bx, @data
+	mov es, bx
+	pop bx
+
+	mov ss:[bp - 8], bx
+
+	; push 4
+	; push ss
+	; push bp - 8
+	; push ds
+	; push di
+	; call memcpy
+	; add sp, 10 
+
+	fild ss:[bp - 8]
+	fist ss:[bp - 4]
+
+	add si, di
+	sub si, 2
+	@@while:
+	cmp di, si
+	jg @@endw
+	cmp word [bp - 4], 0
+	je @@endw
+
+	xor dx, dx
+	mov bx, 10
+	div bx
+	mov bx, dx
+	mov dh, es:[hex_alph + bx]
+	mov [si], dh
+	dec si
+	jmp @@while
+	@@endw:
+	pop es
+	pop di
+	pop si
+	pop dx
+	pop cx
+	pop bx
+	pop sp
+	pop bp
 	retf
 
 ; in: char
