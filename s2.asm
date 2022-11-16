@@ -12,6 +12,7 @@ org 100h
 		Max		dd 0
 		Curr	dd 0
 		Y		dd 640 dup(0)
+		icwr	dw 00F0h
 		N		dw 640
 		H		dw 480
 		dmul	dw 10000
@@ -73,8 +74,8 @@ itos:
 	je itos_while_end
 	xor dx, dx
 	div base
-	add ax, "0"
-	mov [bx], ax
+	add dx, "0"
+	mov [bx], dx
 	inc bx
 	jmp itos_while
 	itos_while_end:
@@ -129,7 +130,7 @@ ftos:
 	push dx
 
 	mov bx, ss:[bp+4]
-	fld [ds:bx]
+	fld DWORD PTR [bx]
 	fist d
 	fild d
 	fchs
@@ -139,13 +140,13 @@ ftos:
 	fistp i
 
 	push [i]
-	push offset buf
+	push offset buf2
 	call itos
 	add sp, 4 
 
 
 	push [d]
-	push offset buf2
+	push offset buf
 	call itos
 	add sp, 4 
 
@@ -164,8 +165,18 @@ start:
 	mov ax, @data
 	mov ds, ax
 	finit
+	fldcw icwr
 
-	push offset B
+	fld B
+	fld A
+	fsubp ST(1), ST(0)
+	fild N
+	fdivp
+	fild dmul
+	fmulp
+	fstp stp
+
+	push offset stp
 	call ftos
 	add sp, 2
 	
