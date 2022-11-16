@@ -1,7 +1,7 @@
 @echo off
 
-set ASM=.\TASM5.0\TASM.EXE /r /w2 /t /zi /la /os 
-set LD=.\TASM5.0\TLINK.EXE
+set ASM=.\TASM5.0\TASM.EXE /zi /r /w2 /t /la /z
+set LD=.\TASM5.0\TLINK.EXE /v /m 
 set OUT=.\OUT.EXE
 set OBJS=0
 

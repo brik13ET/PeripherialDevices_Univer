@@ -39,6 +39,7 @@ start:
 
 .for1:	fld Curr
 		mov bx, cx
+		shl bx, 2
 		fstp Y[bx]
 
 		fld Curr
@@ -53,7 +54,6 @@ start:
 		mov cx, [N]
 
 .for2:	mov bx, cx
-		
 		fld max
 		fld Y[bx]
 		fcom
