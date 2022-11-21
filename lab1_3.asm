@@ -353,7 +353,7 @@ draw_fn proc near
 
 	mov cx, [Wid]
 	draw_fn_loop1:
-	dec cx
+	sub, cx, 1
 	mov bx, cx
 	shl bx, 1
 
@@ -362,7 +362,7 @@ draw_fn proc near
 	push dx
 	call point
 	add sp, 4
-	inc cx
+	add cx, 1
 	loop draw_fn_loop1
 
 	pop dx
@@ -411,6 +411,7 @@ draw_scr proc near
 	pop bp
 	ret
 draw_scr endp
+
 
 start:
 	mov ax, @data
