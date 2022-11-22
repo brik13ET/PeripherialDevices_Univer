@@ -1,6 +1,6 @@
 .model small
 LOCALS
-.486
+.386
 .stack 100h
 org 100h
 
@@ -14,12 +14,17 @@ org 100h
 		Max		dd 0
 		K		dd 0
 		Yabs	dw 640 dup(0)
-		icwr	dw 00F0h
-		icwr_	dw 0
 		Wid		dw 640
 		Hei		dw 479
 		crlf	db 13,10,"$"
 		t1		db "Write float ",13,10,"$"
+		buf1	db 33, 0, 34 dup("$")
+		buf2	db 33, 0, 34 dup("$")
+		sign	dw 1
+		_i		dw 0
+		_d		dw 0
+		_d10	dw 1
+		base	dw 10
 .code
 ;fmt, io
 
@@ -55,9 +60,15 @@ replace endp
 gets proc near
 	push bp
 	mov bp, sp
+	push dx
+	push ax
 
+	mov ah, 0ah
+	mov dx, [bp+4]
+	int 21h
 
-
+	pop ax
+	pop dx
 	pop bp
 	ret
 gets endp
@@ -65,9 +76,98 @@ gets endp
 stof proc near
 	push bp
 	mov bp, sp
+	push ax
+	push bx
+	push cx
+	push dx
+	push si
 
+	sub sp, 10
 
+	; bx - $i
+	; cl - $l
+	; local @@sign: word
+	; local @@_i: word
+	; local @@_d: word
+	; local @@_d10: word
+	; local @@base: word
 
+	mov bx, 2
+	mov si, [bp + 4]
+	mov cl, [si + 1]
+
+	cmp cl, 0
+	jne @@retNaN_end
+	jmp @@ret
+	@@retNaN_end:
+
+	cmp byte ptr si[2], "-"
+	jne @@hasMinus_end
+	mov [sign], -1
+	mov bx, 3
+	@@hasMinus_end:
+	
+	@@stof_loop1:
+	add cl, 2
+	cmp bl, cl
+	jge @@ret
+	sub cl, 2
+
+	cmp byte ptr si[bx], "$"
+	je @@ret
+	cmp byte ptr si[bx], "."
+	je @@stof_loop1_end
+
+	xor dx, dx
+	mov ax, [_i]
+	mul word [base]
+	add al, si[bx]
+	sub al, "$"
+	mov [_i], ax
+
+	inc bx
+	jmp @@stof_loop1
+	@@stof_loop1_end:
+	inc bx
+	@@stof_loop2:
+	add cl, 2
+	cmp bl, cl
+	jge @@stof_loop2_end
+	sub cl, 2
+	cmp byte ptr si[bx], "$"
+	je @@stof_loop2_end
+
+	xor dx, dx
+	mov ax, [_d]
+	mul [base]
+	add ax, si[bx]
+	sub ax, "0"
+	mov [_d], ax
+
+	xor dx, dx
+	mov ax, [_d10]
+	mul [base]
+	mov [_d10], ax
+
+	inc bx
+	jmp @@stof_loop2
+	@@stof_loop2_end:
+	@@ret:
+	fild _d
+	fild _d10
+	fdivp
+	fild _i
+	faddp
+	fild sign
+	fmulp
+
+	add sp, 10
+
+	pop si
+	pop dx
+	pop cx
+	pop bx
+	pop ax
 	pop bp
 	ret
 stof endp
@@ -127,7 +227,7 @@ fn proc near
 	push cx
 	push bx
 
-	; Calculate Y Walues for range [A-B] with step H
+	; Calculate Y Values for range [A-B] with step H
 	mov cx, [Wid]
 	fld B
 	fstp Curr
@@ -353,7 +453,7 @@ draw_fn proc near
 
 	mov cx, [Wid]
 	draw_fn_loop1:
-	sub, cx, 1
+	sub cx, 1
 	mov bx, cx
 	shl bx, 1
 
@@ -418,6 +518,34 @@ start:
 	mov ds, ax
 	finit
 	call setRoundDown
+
+
+	; read floats
+	push offset t1
+	call puts
+	add sp, 2
+
+	push offset buf1
+	call gets
+	add sp, 2
+
+	push offset buf1
+	call stof
+	fst A
+	add sp, 2
+
+	push offset t1
+	call puts
+	add sp, 2
+
+	push offset buf2
+	call gets
+	add sp, 2
+
+	push offset buf2
+	call stof
+	fst B
+	add sp, 2
 
 	; init constatnts
 	fld B
