@@ -17,14 +17,16 @@ org 100h
 		Wid		dw 640
 		Hei		dw 479
 		crlf	db 13,10,"$"
-		t1		db "Write float ",13,10,"$"
-		buf1	db 33, 0, 34 dup("$")
-		buf2	db 33, 0, 34 dup("$")
-		sign	dw 1
-		_i		dw 0
-		_d		dw 0
-		_d10	dw 1
+		sign	dw 0
+		i		dw 0
+		d		dw 0
+		dc		dw 0
 		base	dw 10
+		t1		db "Write float ",13,10,"$"
+		buf1	db 33, 0
+		buf1_s	db 34 dup("$")
+		buf2	db 33, 0
+		buf2_s	db 34 dup("$")
 .code
 ;fmt, io
 
@@ -81,88 +83,92 @@ stof proc near
 	push cx
 	push dx
 	push si
+	push di
 
-	sub sp, 10
 
-	; bx - $i
-	; cl - $l
-	; local @@sign: word
-	; local @@_i: word
-	; local @@_d: word
-	; local @@_d10: word
-	; local @@base: word
+	mov si, [bp + 6]
+	mov bx, [bp + 4]
+	;mov [base], 10
 
-	mov bx, 2
-	mov si, [bp + 4]
-	mov cl, [si + 1]
+	mov [i], 0
+	mov [d], 0
+	mov [dc], 0
+	mov [sign], 0
 
-	cmp cl, 0
-	jne @@retNaN_end
-	jmp @@ret
-	@@retNaN_end:
+	; sign
+	cmp byte ptr [si], "-"
+	jne @@end_sign
+	mov sign, 1
+	inc si
+	@@end_sign:
 
-	cmp byte ptr si[2], "-"
-	jne @@hasMinus_end
-	mov [sign], -1
-	mov bx, 3
-	@@hasMinus_end:
-	
-	@@stof_loop1:
-	add cl, 2
-	cmp bl, cl
-	jge @@ret
-	sub cl, 2
-
-	cmp byte ptr si[bx], "$"
-	je @@ret
-	cmp byte ptr si[bx], "."
-	je @@stof_loop1_end
+	@@whole:
+	cmp byte ptr [si], "$"
+	je @@endf
+	cmp byte ptr [si], 13
+	je @@endf
+	cmp byte ptr [si], 10
+	je @@endf
+	cmp byte ptr [si], "."
+	je @@end_whole
 
 	xor dx, dx
-	mov ax, [_i]
-	mul word [base]
-	add al, si[bx]
-	sub al, "$"
-	mov [_i], ax
-
-	inc bx
-	jmp @@stof_loop1
-	@@stof_loop1_end:
-	inc bx
-	@@stof_loop2:
-	add cl, 2
-	cmp bl, cl
-	jge @@stof_loop2_end
-	sub cl, 2
-	cmp byte ptr si[bx], "$"
-	je @@stof_loop2_end
-
+	mov ax, [i]
+	mul base
 	xor dx, dx
-	mov ax, [_d]
-	mul [base]
-	add ax, si[bx]
+	mov dl, [si]
+	add ax, dx
 	sub ax, "0"
-	mov [_d], ax
+	mov [i], ax
+
+	inc si
+	jmp @@whole
+	@@end_whole:
+	inc si
+
+	@@float:
+	cmp byte ptr [si], "$"
+	je @@end_float
+	cmp byte ptr [si], 13
+	je @@end_float
+	cmp byte ptr [si], 10
+	je @@end_float
 
 	xor dx, dx
-	mov ax, [_d10]
-	mul [base]
-	mov [_d10], ax
+	mov ax, [d]
+	mul base
+	xor dx, dx
+	mov dl, [si]
+	add ax, dx
+	sub ax, "0"
+	mov [d], ax
 
-	inc bx
-	jmp @@stof_loop2
-	@@stof_loop2_end:
-	@@ret:
-	fild _d
-	fild _d10
+	inc [dc]
+	inc si
+
+	jmp @@float
+	@@end_float:
+
+	fild i
+	fild d
+
+	mov cx, [dc]
+	@@mul10:
+
+	fild base
 	fdivp
-	fild _i
+
+	loop @@mul10
+
 	faddp
-	fild sign
-	fmulp
+	cmp [sign], 0
+	je @@end_sign_processing
+	fchs
+	@@end_sign_processing:
 
-	add sp, 10
+	@@endf: 
 
+	pop di
 	pop si
 	pop dx
 	pop cx
@@ -529,10 +535,16 @@ start:
 	call gets
 	add sp, 2
 
-	push offset buf1
+	push offset buf1_s
+	push ','
+	push '.'
+	call replace
+	add sp, 6
+
+	push offset buf1_s
+	push offset A
 	call stof
-	fst A
-	add sp, 2
+	add sp, 4
 
 	push offset t1
 	call puts
@@ -542,10 +554,16 @@ start:
 	call gets
 	add sp, 2
 
-	push offset buf2
+	push offset buf2_s
+	push ','
+	push '.'
+	call replace
+	add sp, 6
+
+	push offset buf2_s
+	push offset B
 	call stof
-	fst B
-	add sp, 2
+	add sp, 4
 
 	; init constatnts
 	fld B
