@@ -13,16 +13,23 @@ org 100h
 		Min		dd 0
 		Max		dd 0
 		K		dd 0
+
 		Yabs	dw 640 dup(0)
 		Wid		dw 640
 		Hei		dw 479
-		crlf	db 13,10,"$"
+
 		sign	dw 0
 		i		dw 0
 		d		dw 0
 		dc		dw 0
 		base	dw 10
-		t1		db "Write float ",13,10,"$"
+
+		vid		dw 0, 0
+
+		crlf	db 13,10,"$"
+		ferr	db 0
+		t1		db "Write float ","$"
+		t2		db "Error, try again",13,10,"$"
 		buf1	db 33, 0
 		buf1_s	db 34 dup("$")
 		buf2	db 33, 0
@@ -97,10 +104,19 @@ stof proc near
 
 	; sign
 	cmp byte ptr [si], "-"
-	jne @@end_sign
+	jne @@end_sign_min
 	mov sign, 1
+	@@end_sign_min:
+	cmp byte ptr [si], "+"
+	jne @@end_sign
+	mov sign, 0
 	inc si
 	@@end_sign:
+
+	cmp byte ptr [si], "."
+	jne @@whole
+	mov [ferr], 1
+	jmp @@endf
 
 	@@whole:
 	cmp byte ptr [si], "$"
@@ -109,8 +125,20 @@ stof proc near
 	je @@endf
 	cmp byte ptr [si], 10
 	je @@endf
+
 	cmp byte ptr [si], "."
 	je @@end_whole
+
+	cmp byte ptr [si], "0"
+	jge @@whole_ok_1
+	mov [ferr], 1
+	jmp @@endf
+	@@whole_ok_1:
+	cmp byte ptr [si], "9"
+	jle @@whole_ok_2
+	mov [ferr], 1
+	jmp @@endf
+	@@whole_ok_2:
 
 	xor dx, dx
 	mov ax, [i]
@@ -126,6 +154,17 @@ stof proc near
 	@@end_whole:
 	inc si
 
+	cmp byte ptr [si], "0"
+	jge @@point_ok_1
+	mov [ferr], 1
+	jmp @@endf
+	@@point_ok_1:
+	cmp byte ptr [si], "9"
+	jle @@point_ok_2
+	mov [ferr], 1
+	jmp @@endf
+	@@point_ok_2:
+
 	@@float:
 	cmp byte ptr [si], "$"
 	je @@end_float
@@ -133,6 +172,17 @@ stof proc near
 	je @@end_float
 	cmp byte ptr [si], 10
 	je @@end_float
+
+	cmp byte ptr [si], "0"
+	jge @@float_ok_1
+	mov [ferr], 1
+	jmp @@endf
+	@@float_ok_1:
+	cmp byte ptr [si], "9"
+	jle @@float_ok_2
+	mov [ferr], 1
+	jmp @@endf
+	@@float_ok_2:
 
 	xor dx, dx
 	mov ax, [d]
@@ -396,10 +446,15 @@ setRoundNear proc near
 setRoundNear endp
 
 ; plot, videomode
+
+; 00H уст. видео режим. Очистить экран, установить поля BIOS, установить режим.
+;     вход:  AL=режим
+; 05H выбрать активную страницу дисплея
+;     вход:  AL = номер страницы (большинство программ использует страницу 0)
+
 setvid proc near
-	push bp
-	mov bp, sp
 	push ax
+	push bx
 	
 	mov ax, 0012h
 	int 10h
@@ -407,20 +462,45 @@ setvid proc near
 	mov ax, 0500h
 	int 10h
 
+	pop bx
 	pop ax
-	pop bp
 	ret
 setvid endp
+
+; 0fH читать текущий видео режим
+;     вход:  нет
+;    выход:  AL = текущий режим (см. функцию 00H)
+;            AH = число текстовых колонок на экране
+;            BH = текущий номер активной страницы дисплея
+savevid proc near
+	push ax
+	push bx
+
+	mov ah, 0fh
+	int 10h
+
+	mov [vid], ax
+	xchg bh, bl
+	mov [vid + 2], bx
+
+	pop bx
+	pop ax
+	ret
+savevid endp
 
 settext proc near
 	push bp
 	mov bp, sp
 	push ax
 	
-	mov ax, 0003h
+
+	mov ax, [vid]
+	mov ah, 00h
 	int 10h
 
-	mov ax, 0500h
+	mov ax, [vid + 2]
+	xchg ah, al
+	mov ah, 05h
 	int 10h
 
 	pop ax
@@ -525,7 +605,7 @@ start:
 	finit
 	call setRoundDown
 
-
+@@readf:
 	; read floats
 	push offset t1
 	call puts
@@ -535,16 +615,40 @@ start:
 	call gets
 	add sp, 2
 
+	push offset crlf
+	call puts
+	add sp, 2
+
+	cmp byte ptr [buf1 + 1], 0
+	jne @@ok_1
+
+	push offset t2
+	call puts
+	add sp, 2
+	jmp @@readf
+	@@ok_1:
+
 	push offset buf1_s
 	push ','
 	push '.'
 	call replace
 	add sp, 6
 
+	mov [ferr], 0
 	push offset buf1_s
 	push offset A
 	call stof
 	add sp, 4
+
+
+	cmp byte ptr [ferr], 0
+	je @@ok_2
+
+	push offset t2
+	call puts
+	add sp, 2
+	jmp @@readf
+	@@ok_2:
 
 	push offset t1
 	call puts
@@ -554,27 +658,60 @@ start:
 	call gets
 	add sp, 2
 
+	push offset crlf
+	call puts
+	add sp, 2
+	
+	cmp byte ptr [buf2 + 1], 0
+	jne @@ok_3
+
+	push offset t2
+	call puts
+	add sp, 2
+	jmp @@readf
+	@@ok_3:
+
 	push offset buf2_s
 	push ','
 	push '.'
 	call replace
 	add sp, 6
 
+	mov [ferr], 0
 	push offset buf2_s
 	push offset B
 	call stof
 	add sp, 4
 
+	cmp byte ptr [ferr], 0
+	je @@endr
+
+	push offset t2
+	call puts
+	add sp, 2
+	jmp @@ok_2
+
+	@@endr:
 	; init constatnts
 	fld B
 	fsub A
 	fild Wid
 	fdivp
+
+	fldz
+	fcomp
+	sahf
+	jnp @@storeH
+	fchs
+	@@storeH:
 	fstp H
 	ffree
 	fdecstp
 
+
+
 	call fn
+	call savevid
 	call setvid
 	; call draw_scr
 	; call getch
