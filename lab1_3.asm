@@ -93,8 +93,7 @@ stof proc near
 	push di
 
 
-	mov si, [bp + 6]
-	mov bx, [bp + 4]
+	mov si, [bp + 4]
 	;mov [base], 10
 
 	mov [i], 0
@@ -105,26 +104,45 @@ stof proc near
 	; sign
 	cmp byte ptr [si], "-"
 	jne @@end_sign_min
+	
 	mov sign, 1
+	inc si
+	jmp @@end_sign
+	
 	@@end_sign_min:
+	
 	cmp byte ptr [si], "+"
 	jne @@end_sign
+	
 	mov sign, 0
 	inc si
+
 	@@end_sign:
 
 	cmp byte ptr [si], "."
-	jne @@whole
+	jne @@no_point
 	mov [ferr], 1
 	jmp @@endf
+	@@no_point:
+
+	cmp byte ptr [si], "0"
+	jge @@fn_cmp_numchar1
+	mov [ferr], 2
+	jmp @@endf
+	@@fn_cmp_numchar1:
+	cmp byte ptr [si], "9"
+	jle @@fn_cmp_numchar2
+	mov [ferr], 2
+	jmp @@endf
+	@@fn_cmp_numchar2:
 
 	@@whole:
 	cmp byte ptr [si], "$"
-	je @@endf
+	je @@end_float
 	cmp byte ptr [si], 13
-	je @@endf
+	je @@end_float
 	cmp byte ptr [si], 10
-	je @@endf
+	je @@end_float
 
 	cmp byte ptr [si], "."
 	je @@end_whole
@@ -285,7 +303,7 @@ fn proc near
 
 	; Calculate Y Values for range [A-B] with step H
 	mov cx, [Wid]
-	fld B
+	fld A
 	fstp Curr
 
 	fn_loop1:
@@ -303,7 +321,7 @@ fn proc near
 
 	fld Curr
 	fld H
-	fsubp
+	faddp
 	fstp Curr
 
 	add cx, 1
@@ -636,9 +654,9 @@ start:
 
 	mov [ferr], 0
 	push offset buf1_s
-	push offset A
 	call stof
 	add sp, 4
+	fstp A
 
 
 	cmp byte ptr [ferr], 0
@@ -679,8 +697,8 @@ start:
 
 	mov [ferr], 0
 	push offset buf2_s
-	push offset B
 	call stof
+	fstp B
 	add sp, 4
 
 	cmp byte ptr [ferr], 0
@@ -700,8 +718,13 @@ start:
 
 	fldz
 	fcomp
+	fstsw ax
 	sahf
-	jnp @@storeH
+	jnc @@storeH
+	fld B
+	fld A
+	fstp B
+	fstp A
 	fchs
 	@@storeH:
 	fstp H
