@@ -18,7 +18,10 @@ F_END equ 02h
 	ferr	db 0
 	fmt		db 2eh
 	offset_ dw 0
-	buf		db 64 dup("$")
+	buf		db 160 dup(0)
+	line	db 80
+	left	db 0
+	line_w	db 0
 	fname	db "data.txt", 0 ; asciiz
 	err_str	db "Error occured"
 	err_cod	db "0000h"
@@ -107,7 +110,6 @@ setvid proc near
 	ret
 setvid endp
 
-
 getch proc near
 	push bp
 	mov bp, sp
@@ -181,37 +183,73 @@ start:
 	xor bx, bx 
 	call setvid
 
+	scr_x equ bh
+	scr_y equ bl
+
+	mov scr_y, 12
+	mov scr_x, 75
+
+	mov si, offset buf
+
+	linew_calc:
+	cmp byte ptr [si], ","
+	je linew_calc_end
+	cmp  byte ptr [si], 0
+	je linew_calc_end
+	inc si
+	jmp linew_calc
+	linew_calc_end:
+
+	inc si
+	sub si, offset buf
+	mov ax, si
+	xor si, si
+	sub scr_x, al
+	shr scr_x, 1
+
+	mov [left], scr_x
+	dec [left]
+
 	print:
+
+	cmp byte ptr si, [fsiz]
+	jge @@exitfor
+
+	push cx
+	movzx ax, scr_y
+	mul line
+	mov di, ax
+
+	xor cx, cx
+	add cl, scr_x
+	add di, cx
+	shl di, 1
+	add di, dx
 
 	mov ah, [fmt]
 	mov al, [buf + si]
 
-	add bx, si
+	mov es:[di+1], ah
+	mov es:[di+0], al
 
-	; di = si * 2
-	mov di, bx
-	add di, bx
+	cmp al, ","
+	jne @@endfor
 
-	mov es:[di + 80*2*12+20*2+1], ah
-	mov es:[di + 80*2*12+20*2], al
+	mov scr_x, [left]
+	inc scr_y
 
-	xor bx, bx
-	cmp al, ','
-	jne @@nl
-		mov [offset_], 1
-	@@nl:
-
-	cmp byte ptr [offset_], 0
-	je @@nl2
-	mov bx, 47
-	@@nl2:
-
-	
-
+	@@skip_w:
+	cmp [buf + si + 1], " "
+	jne @@endfor
 	inc si
+	jmp @@skip_w
 
+	@@endfor:
+	inc si
+	inc scr_x
+	pop cx
 	loop print
-
+	@@exitfor:
 	call getch
 
 exit:
