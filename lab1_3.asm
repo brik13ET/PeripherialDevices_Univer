@@ -277,7 +277,7 @@ getch endp
 
 ; Math, iterate
 ; in: st(0)
-; out: st(0)
+; out: st(0)f
 fn_calc proc near
 	push bp
 	mov bp, sp
