@@ -6,8 +6,12 @@ org 100h
 
 .data
 	vid 	dw 0, 0
-	t1		db "Hello, world!",13, 10, "$"
-	symbol	db 00000000b
+	t1		db 64, 0, 64 dup('$')
+	offset_x dw 12
+	offset_y dw 24
+	ssize	equ 6
+	symbol	db 8 dup(?)
+	mysymbol db 00000000b
 			db 00100100b
 			db 01111110b
 			db 01111110b
@@ -15,7 +19,53 @@ org 100h
 			db 00111100b
 			db 00011000b
 			db 00000000b
+
 .code
+
+fill_s proc near
+	push bp
+	mov bp, sp
+	push ax
+	push bx
+	push cx
+	push dx
+
+	mov cx, [bp + 6] ; from x
+	mov dx, [bp + 4] ; from y
+
+	mov ah, ssize ; region w
+	mov al, ssize ; region h
+
+	@@row:
+	@@point:
+
+	push cx
+	push dx
+	call point
+	add sp, 4
+
+	dec ah
+	inc cx
+	cmp ah, 0
+	jne @@point
+
+	mov  bx, ssize
+	sub cx, bx
+	dec al
+	inc dx
+	mov ah, ssize
+	cmp al, 0
+	jne @@row
+
+
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	pop bp
+	ret
+fill_s endp
+
 point proc near
 	push bp
 	mov bp, sp
@@ -24,10 +74,11 @@ point proc near
 	push cx
 	push dx
 
-	mov ax, 0c0Ah
-	mov bx, 0000h
+
 	mov cx, [bp + 6]
 	mov dx, [bp + 4]
+	mov ax, 0c0Ah
+	mov bx, 0
 	int 10h
 
 	pop dx
@@ -37,6 +88,39 @@ point proc near
 	pop bp
 	ret
 point endp
+
+dot proc near
+	push bp
+	mov bp, sp
+	push ax
+	push bx
+	push cx
+	push dx
+
+	local siz: byte
+	mov [siz], ssize
+
+	mov dx, [bp + 4]
+	mov cx, [bp + 6]
+	dec cx
+	dec dx
+
+	mov ax, cx
+	mul [siz]
+	push ax
+	mov ax, dx
+	mul [siz]
+	push ax
+	call fill_s
+	add sp, 4
+
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	pop bp
+	ret
+dot endp
 
 setvid proc near
 	push ax
@@ -77,10 +161,14 @@ draw proc near
 			jc @@draw
 			jnc @@end_draw
 		@@draw:
+			add cx, [offset_x]
+			add di, [offset_y]
 			push cx
 			push di
-			call point
+			call dot
 			add sp, 4
+			sub cx, [offset_x]
+			sub di, [offset_y]
 		@@end_draw:
 		cmp cx, 8
 		je @@line
@@ -93,6 +181,55 @@ draw proc near
 	pop bp
 	ret
 draw endp
+
+bios_draw proc near
+	push bp
+	mov bp, sp
+	pusha
+	
+	mov si, 0FA6Eh
+	mov ax, 0f000h
+	mov es, ax
+	mov ax, [bp+4]
+
+	cmp al, '@'
+	jne @@bios
+
+	push offset mysymbol
+	call draw
+	add sp, 2
+	jmp @@endp
+
+
+	@@bios:
+	shl ax, 3
+	add si, ax
+
+	xor bx, bx
+	xor di, di
+
+	mov cx, 8
+	@@mem:
+	dec cx
+
+	mov bl, es:[si]
+	mov symbol[di], bl
+
+	inc di
+	inc si
+	inc cx
+	loop @@mem
+
+	push offset symbol
+	call draw
+	add sp, 2
+
+	@@endp:
+
+	popa
+	pop bp
+	ret
+bios_draw endp
 
 savevid proc near
 	push ax
@@ -130,23 +267,6 @@ settext proc near
 	ret
 settext endp
 
-
-puts proc near
-	push bp
-	mov bp, sp
-	push ax
-	push dx
-
-	mov ax, 0900h
-	mov dx, [bp + 4]
-	int 21h
-
-	pop dx
-	pop ax
-	pop bp
-	ret
-puts endp
-
 getch proc near
 	push bp
 	mov bp, sp
@@ -160,26 +280,71 @@ getch proc near
 	ret
 getch endp
 
+gets proc near
+	push bp
+	mov bp, sp
+	push dx
+	push ax
+
+	mov ah, 0ah
+	mov dx, [bp+4]
+	int 21h
+
+	pop ax
+	pop dx
+	pop bp
+	ret
+gets endp
+
 start:
 	mov ax, @data
 	mov ds, ax
 
+	push offset t1
+	call gets
+	add sp, 2
+
 	call savevid
 	call setvid
 
-	push offset symbol
-	call draw
+	mov cx, 2
+	@@dec:
+
+	mov bx, cx
+	mov bl, t1[bx]
+
+	cmp bl, "$"
+	je @@dec_end
+
+	push bx
+	call bios_draw
 	add sp, 2
+	
+	add [offset_x], ssize
+	add [offset_x], 1
+	; add [offset_x], ssize 
+	cmp offset_x, 640 / ssize - ssize
+	jge @@line
+	cmp bl, 13
+	jne @@noline
+
+	@@line:
+
+	mov offset_x, 0
+	add offset_y, ssize+4
+
+	@@noline:
+
+
+	inc cx
+	jmp @@dec
+	@@dec_end:
+
 
 	call getch
+
 	call settext
 
-	mov ax, 0f000h
-	mov es, ax
-
-	; push offset t1
-	; call my_puts
-	; add sp, 2
 
 exit:
 	mov ax, 4c00h
