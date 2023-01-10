@@ -1,484 +1,265 @@
-Turbo Assembler	 Version 4.1	    21/11/22 05:43:03	    Page 1
-lab1_3.asm
+Turbo Assembler	 Version 4.1	    11/01/23 02:31:25	    Page 1
+lab4.asm
 
 
 
       1	    0000			 .model	small
       2					 LOCALS
-      3					 .486
+      3					 .386
       4	    0000			 .stack	100h
       5					 org 100h
       6
       7	    0000			 .data
-      8	    0000  00000000				 A		 dd 0.0
-      9	    0004  40C90E56				 B		 dd 6.2830
-     10	    0008  00000000				 H		 dd 0
-     11	    000C  00000000				 Curr	 dd 0
-     12	    0010  0280*(00000000)			 Y		 dd 640	dup(0)
-     13	    0A10  00000000				 Min		 dd 0
-     14	    0A14  00000000				 Max		 dd 0
-     15	    0A18  00000000				 K		 dd 0
-     16	    0A1C  0280*(0000)				 Yabs	 dw 640	dup(0)
-     17	    0F1C  00F0					 icwr	 dw 00F0h
-     18	    0F1E  0000					 icwr_	 dw 0
-     19	    0F20  0280					 Wid		 dw 640
-     20	    0F22  01DF					 Hei		 dw 479
-     21	    0F24  0D 0A	24				 crlf	 db 13,10,"$"
-     22	    0F27  57 72	69 74 65 20 66+			 t1		 db "Write float ",13,10,"$"
-     23		  6C 6F	61 74 20 0D 0A+
-     24		  24
-     25	    0F36			 .code
-     26	    0000			 replace proc near
-     27	    0000  55				 push bp
-     28	    0001  8B EC				 mov bp, sp
-     29	    0003  53				 push bx
-     30	    0004  56				 push SI
-     31
-     32	    0005  8B 76	08			 mov	 si, [bp + 8] ;	str
-     33	    0008  8A 7E	06			 mov bh, [bp + 6] ; from
-     34	    000B  8A 5E	04			 mov bl, [bp + 4] ; to
-     35
-     36	    000E				 replace_while:
-     37	    000E  80 3C	24			 cmp byte ptr [si], "$"
-     38	    0011  74 09				 je	 replace_while_end
-     39
-     40	    0013  38 3C				 cmp byte ptr ds:[si], bh
-     41	    0015  75 02				 jne replace_while_skip
-     42	    0017  88 1C				 mov [si], bl
-     43	    0019				 replace_while_skip:
-     44	    0019  46				 inc si
-     45	    001A  EB F2				 jmp replace_while
-     46	    001C				 replace_while_end:
-     47
-     48
-     49	    001C  5E				 pop SI
-     50	    001D  5B				 pop bx
-     51	    001E  5D				 pop bp
-     52	    001F  C3				 ret
-     53	    0020			 replace endp
-     54
-     55					 ; in: st(0)
-     56					 ; out:	st(0)
-     57	    0020			 fn_calc proc near
-Turbo Assembler	 Version 4.1	    21/11/22 05:43:03	    Page 2
-lab1_3.asm
+      8	    0000  407A4036C3760BF6		 float1		 dq 420.01337
+      9	    0008  C07A4036C3760BF6		 float2		 dq -420.01337
+     10
+     11	    0010  0F				 msg_max_len db	15
+     12	    0011  0F				 msg_len	 db 15
+     13	    0012  0F*(??)			 msg		 db 15 dup(?)
+     14	    0021  0D 0A	24			 crlf		 db 13,10,'$'
+     15	    0024  00				 dig_cnt	 db 0
+     16	    0025  000A				 base		 dw 10
+     17
+     18	    0027			 .code
+     19
+     20					 ; in: buf, buf_len, st(0)
+     21					 ; out:	buf
+     22	    0000			 ftos proc near
+     23	    0000  55				 push bp
+     24	    0001  8B EC				 mov bp, sp
+     25	    0003  6A 00				 push 0
+     26	    0005  50				 push ax
+     27	    0006  53				 push bx
+     28	    0007  51				 push cx
+     29	    0008  52				 push dx
+     30	    0009  57				 push di
+     31	    000A  56				 push si
+     32
+     33	    000B  8B 5E	06			 mov bx, [bp + 6]
+     34	    000E  33 C9				 xor cx, cx
+     35	    0010  33 F6				 xor si, si
+     36	    0012  B6 05				 mov dh, 5
+     37
+     38	    0014  A1 0025r			 mov ax, base
+     39	    0017  48				 dec ax
+     40	    0018  89 46	00			 mov [bp], ax
+     41	    001B  DF 46	00			 fild word ptr [bp]
+     42	    001E  D9 C9				 fxch
+     43
+     44	    0020				 @@abs:
+     45	    0020  D9 EE				 fldz
+     46	    0022  D9 C9				 fxch st(1)
+     47	    0024  D8 D1				 fcom st(1)
+     48	    0026  9B DF	E0			 fstsw ax
+     49	    0029  9E				 sahf
+     50	    002A  77 08				 ja @@abs_end
+     51
+     52	    002C  C6 07	2D			 mov byte ptr [bx], '-'
+     53	    002F  43				 inc bx
+     54	    0030  D9 E0				 fchs
+     55	    0032  B2 01				 mov dl, 1
+     56
+     57	    0034				 @@abs_end:
+Turbo Assembler	 Version 4.1	    11/01/23 02:31:25	    Page 2
+lab4.asm
 
 
 
-     58	    0020  55				 push bp
-     59	    0021  8B EC				 mov bp, sp
-     60
-     61	    0023  D9 FB				 fsincos
-     62	    0025  D8 C8				 fmul st(0), st(0)
-     63	    0027  D9 C9				 fxch st(1)
-     64	    0029  D9 C0				 fld st(0)
-     65	    002B  D8 C9				 fmul st(0), st(1)
-     66	    002D  DE C9				 fmulp
-     67	    002F  DE C1				 faddp
-     68
-     69	    0031  5D				 pop bp
-     70	    0032  C3				 ret
-     71	    0033			 fn_calc endp
+     58	    0034				 @@norm:
+     59
+     60	    0034  DE 16	0025r			 ficom base
+     61	    0038  9B DF	E0			 fstsw ax
+     62	    003B  9E				 sahf
+     63	    003C  72 07				 jb @@norm_end
+     64
+     65	    003E  DE 36	0025r			 fidiv base
+     66	    0042  41				 inc cx
+     67
+     68	    0043  EB EF				 jmp @@norm
+     69	    0045				 @@norm_end:
+     70	    0045  41				 inc cx
+     71	    0046				 @@digit:
      72
-     73	    0033			 fn proc near
-     74	    0033  55				 push bp
-     75	    0034  8B EC				 mov bp, sp
-     76	    0036  50				 push ax
-     77	    0037  51				 push cx
-     78	    0038  53				 push bx
-     79
-     80						 ; Calculate Y Walues for range	[A-B] with step	H
-     81	    0039  8B 0E	0F20r			 mov cx, [Wid]
-     82	    003D  D9 06	0004r			 fld B
-     83	    0041  D9 1E	000Cr			 fstp Curr
-     84
-     85	    0045				 fn_loop1:
-     86
-     87	    0045  83 E9	01			 sub cx, 1
-     88	    0048  8B D9				 mov bx, cx
+     73	    0046  DF 56	00			 fist word ptr [bp]
+     74	    0049  DE 66	00			 fisub word ptr	[bp]
+     75	    004C  DE 0E	0025r			 fimul base
+     76	    0050  8B 46	00			 mov ax, [bp]
+     77
+     78	    0053  83 F9	00			 cmp cx, 0
+     79	    0056  7C 0A				 jl @@point_end
+     80	    0058  74 03				 je @@point_equ
+     81	    005A  49				 dec cx
+     82	    005B  EB 05				 jmp @@point_end
+     83
+     84	    005D				 @@point_equ:
+     85	    005D  C6 07	2E			 mov byte ptr [bx], '.'
+     86	    0060  49				 dec cx
+     87	    0061  43				 inc bx
+     88	    0062				 @@point_end:
      89
-     90	    004A  C1 E3	02			 shl bx, 2
-     91
-     92	    004D  D9 06	000Cr			 fld Curr
-     93
-     94	    0051  E8 FFCC			 call fn_calc
-     95
-     96	    0054  D9 9F	0010r			 fstp Y[bx]
-     97
-     98	    0058  D9 06	000Cr			 fld Curr
-     99	    005C  D9 06	0008r			 fld H
-    100	    0060  DE E9				 fsubp
-    101	    0062  D9 1E	000Cr			 fstp Curr
-    102
-    103	    0066  83 C1	01			 add cx, 1
-    104	    0069  E2 DA				 loop fn_loop1
+     90	    0062  83 F9	FF			 cmp cx, 0ffffh
+     91	    0065  75 31				 jne @@end_cmp
+     92
+     93	    0067  3C 00				 cmp al, 0
+     94	    0069  74 17				 je @@al0
+     95	    006B  3C 09				 cmp al, 9
+     96	    006D  74 02				 je @@al9
+     97	    006F  EB 22				 jmp @@al_else
+     98	    0071				 @@al9:
+     99	    0071  80 FE	09			 cmp dh, 9
+    100	    0074  75 03				 jne @@nine_ch
+    101
+    102	    0076  46				 inc si
+    103	    0077  EB 1F				 jmp @@end_cmp
+    104	    0079				 @@nine_ch:
     105
-    106	    006B  D9 06	0010r			 fld Y[0]
-    107	    006F  D9 16	0A14r			 fst Max
-    108	    0073  D9 1E	0A10r			 fstp Min
-    109
-    110						 ; Min & Max Calc
-    111	    0077  8B 0E	0F20r			 mov cx, [Wid]
-    112	    007B				 fn_loop2:
-    113	    007B  83 E9	01			 sub cx, 1
-    114	    007E  8B D9				 mov bx, cx
-Turbo Assembler	 Version 4.1	    21/11/22 05:43:03	    Page 3
-lab1_3.asm
+    106	    0079  8B FB				 mov di, bx
+    107	    007B  BE 0001			 mov si, 1
+    108	    007E  B6 09				 mov dh, 9
+    109	    0080  EB 16				 jmp @@end_cmp
+    110	    0082				 @@al0:
+    111
+    112	    0082  80 FE	00			 cmp dh, 0
+    113	    0085  75 03				 jne @@zero_ch
+    114
+Turbo Assembler	 Version 4.1	    11/01/23 02:31:25	    Page 3
+lab4.asm
 
 
 
-    115	    0080  C1 E3	02			 shl bx, 2
-    116
-    117	    0083  D9 87	0010r			 fld Y[bx]
-    118	    0087  D9 06	0A14r			 fld Max
-    119	    008B  D9 C9				 fxch
-    120
-    121						 ; cmp max & fpu top
-    122	    008D  D8 D1				 fcom st(1)
-    123	    008F  9B DF	E0			 fstsw ax
-    124	    0092  9E				 sahf
-    125	    0093  72 06				 jc fn_loop2_endMax
-    126	    0095  74 04				 jz fn_loop2_endMax
-    127	    0097  D9 16	0A14r			 fst Max
-    128	    009B				 fn_loop2_endMax:
+    115	    0087  46				 inc si
+    116	    0088  EB 0E				 jmp @@end_cmp
+    117	    008A				 @@zero_ch:
+    118
+    119	    008A  8B FB				 mov di, bx
+    120	    008C  BE 0001			 mov si, 1
+    121	    008F  B6 00				 mov dh, 0
+    122	    0091  EB 05				 jmp @@end_cmp
+    123
+    124	    0093				 @@al_else:
+    125	    0093  BE 0000			 mov si, 0
+    126	    0096  B6 05				 mov dh, 5 ; not 0 and not 9
+    127
+    128	    0098				 @@end_cmp:
     129
-    130	    009B  DD C1				 ffree
-    131	    009D  D9 06	0A10r			 fld Min
-    132	    00A1  D9 C9				 fxch
+    130	    0098  83 FE	03			 cmp si, 3
+    131	    009B  77 07				 ja @@end_proc
+    132
     133
-    134						 ; cmp min & fpu top
-    135	    00A3  D8 D1				 fcom st(1)
-    136	    00A5  9B DF	E0			 fstsw ax
-    137	    00A8  9E				 sahf
-    138	    00A9  73 04				 jnc fn_loop2_endMin
+    134						 ; TODO: exit on si >= 3 (@@end_proc)
+    135
+    136	    009D  04 30				 add al, '0'
+    137	    009F  88 07				 mov [bx], al
+    138	    00A1  43				 inc bx
     139
-    140	    00AB  D9 16	0A10r			 fst Min
-    141	    00AF				 fn_loop2_endMin:
-    142
-    143						 ; fxch
-    144	    00AF  83 C1	01			 add cx,1
-    145	    00B2  DD C0				 ffree st(0)
-    146	    00B4  D9 F7				 fincstp
-    147	    00B6  DD C0				 ffree st(0)
-    148
-    149	    00B8  E2 C1				 loop fn_loop2
-    150
-    151	    00BA  D9 06	0A14r			 fld Max
-    152	    00BE  D8 26	0A10r			 fsub Min
-    153	    00C2  DF 06	0F22r			 fild Hei
-    154	    00C6  D9 C9				 fxch
-    155	    00C8  DE F9				 fdivp
-    156	    00CA  D9 1E	0A18r			 fstp K
-    157	    00CE  E8 00A9			 call setRoundNear
-    158
-    159	    00D1  8B 0E	0F20r			 mov cx, [Wid]
-    160	    00D5				 fn_loop3:
-    161
-    162	    00D5  83 E9	01			 sub cx, 1
-    163	    00D8  8B D9				 mov bx, cx
-    164	    00DA  C1 E3	02			 shl bx, 2
-    165	    00DD  D9 06	0A18r			 fld K
-    166
-    167	    00E1  D9 87	0010r			 fld Y[bx]
-    168	    00E5  D8 26	0A10r			 fsub Min
-    169	    00E9  DE C9				 fmul
-    170	    00EB  DF 06	0F22r			 fild Hei
-    171	    00EF  D9 C9				 fxch
-Turbo Assembler	 Version 4.1	    21/11/22 05:43:03	    Page 4
-lab1_3.asm
+    140	    00A2  EB A2				 jmp @@digit
+    141
+    142	    00A4				 @@end_proc:
+    143
+    144	    00A4  C6 05	24			 mov byte ptr [di], '$'
+    145	    00A7  80 FE	00			 cmp dh, 0
+    146	    00AA  74 06				 je @@end_inc
+    147	    00AC  80 FA	01			 cmp dl, 1
+    148	    00AF  4F				 dec di
+    149	    00B0  FE 05				 inc byte ptr [di]
+    150	    00B2				 @@end_inc:
+    151
+    152	    00B2  5E				 pop si
+    153	    00B3  5F				 pop di
+    154	    00B4  5A				 pop dx
+    155	    00B5  59				 pop cx
+    156	    00B6  5B				 pop bx
+    157	    00B7  58				 pop ax
+    158	    00B8  83 C4	02			 add sp, 2
+    159	    00BB  5D				 pop bp
+    160	    00BC  C3				 ret
+    161	    00BD			 ftos endp
+    162
+    163	    00BD			 setRoundDown proc near
+    164	    00BD  55				 push bp
+    165	    00BE  8B EC				 mov bp, sp
+    166	    00C0  6A 00				 push 0
+    167
+    168
+    169
+    170	    00C2  9B D9	7E 00			 fstcw [bp]
+    171	    00C6  81 4E	00 0C00			 or word ptr [bp], 0C00h
+Turbo Assembler	 Version 4.1	    11/01/23 02:31:25	    Page 4
+lab4.asm
 
 
 
-    172	    00F1  DE E9				 fsubp
-    173	    00F3  D1 EB				 shr bx, 1
-    174	    00F5  DF 9F	0A1Cr			 fistp Yabs[bx]
+    172						 ; mov [bp], ax
+    173	    00CB  D9 6E	00			 fldcw word ptr	[bp]
+    174
     175
-    176	    00F9  83 C1	01			 add cx, 1
-    177	    00FC  E2 D7				 loop fn_loop3
-    178
-    179	    00FE  5B				 pop bx
-    180	    00FF  59				 pop cx
-    181	    0100  58				 pop ax
-    182	    0101  5D				 pop bp
-    183	    0102  C3				 ret
-    184	    0103			 fn endp
-    185
-    186	    0103			 gets proc near
-    187	    0103  55				 push bp
-    188	    0104  8B EC				 mov bp, sp
-    189
+    176	    00CE  83 C4	02			 add sp, 2
+    177	    00D1  5D				 pop bp
+    178	    00D2  C3				 ret
+    179	    00D3			 setRoundDown endp
+    180
+    181	    00D3			 puts proc near
+    182	    00D3  55				 push bp
+    183	    00D4  8B EC				 mov bp, sp
+    184	    00D6  50				 push ax
+    185	    00D7  52				 push dx
+    186
+    187	    00D8  B8 0900			 mov ax, 0900h
+    188	    00DB  8B 56	04			 mov dx, [bp + 4]
+    189	    00DE  CD 21				 int 21h
     190
-    191
-    192	    0106  5D				 pop bp
-    193	    0107  C3				 ret
-    194	    0108			 gets endp
-    195
-    196	    0108			 stof proc near
-    197	    0108  55				 push bp
-    198	    0109  8B EC				 mov bp, sp
-    199
-    200
+    191	    00E0  5A				 pop dx
+    192	    00E1  58				 pop ax
+    193	    00E2  5D				 pop bp
+    194	    00E3  C3				 ret
+    195	    00E4			 puts endp
+    196
+    197	    00E4			 start:
+    198	    00E4  B8 0000s			 mov ax, @data
+    199	    00E7  8E D8				 mov ds, ax
+    200	    00E9  9B DB	E3			 finit
     201
-    202	    010B  5D				 pop bp
-    203	    010C  C3				 ret
-    204	    010D			 stof endp
-    205
-    206	    010D			 puts proc near
-    207	    010D  55				 push bp
-    208	    010E  8B EC				 mov bp, sp
-    209	    0110  50				 push ax
-    210	    0111  52				 push dx
+    202	    00EC  E8 FFCE			 call setRoundDown
+    203
+    204	    00EF  68 0012r			 push offset msg
+    205	    00F2  0F B6	16 0011r		 movzx dx, msg_len
+    206	    00F7  52				 push dx
+    207	    00F8  DD 06	0000r			 fld float1
+    208	    00FC  E8 FF01			 call ftos
+    209	    00FF  83 C4	02			 add sp, 2
+    210	    0102  DD C1				 ffree
     211
-    212	    0112  B8 0900			 mov ax, 0900h
-    213	    0115  8B 56	04			 mov dx, [bp + 4]
-    214	    0118  CD 21				 int 21h
-    215
-    216	    011A  5A				 pop dx
-    217	    011B  58				 pop ax
-    218	    011C  5D				 pop bp
-    219	    011D  C3				 ret
-    220	    011E			 puts endp
-    221
-    222	    011E			 getch proc near
-    223	    011E  55				 push bp
-    224	    011F  8B EC				 mov bp, sp
-    225	    0121  50				 push ax
+    212	    0104  68 0012r			 push offset msg
+    213	    0107  E8 FFC9			 call puts
+    214	    010A  83 C4	02			 add sp, 2
+    215	    010D  68 0021r			 push offset crlf
+    216	    0110  E8 FFC0			 call puts
+    217	    0113  83 C4	02			 add sp, 2
+    218
+    219	    0116  68 0012r			 push offset msg
+    220	    0119  0F B6	16 0011r		 movzx dx, msg_len
+    221	    011E  52				 push dx
+    222	    011F  DD 06	0008r			 fld float2
+    223	    0123  E8 FEDA			 call ftos
+    224	    0126  83 C4	02			 add sp, 2
+    225	    0129  DD C1				 ffree
     226
-    227	    0122  B8 0800			 mov ax, 0800h
-    228	    0125  CD 21				 int 21h
-Turbo Assembler	 Version 4.1	    21/11/22 05:43:03	    Page 5
-lab1_3.asm
+    227	    012B  68 0012r			 push offset msg
+    228	    012E  E8 FFA2			 call puts
+Turbo Assembler	 Version 4.1	    11/01/23 02:31:25	    Page 5
+lab4.asm
 
 
 
-    229
-    230	    0127  58				 pop ax
-    231	    0128  5D				 pop bp
-    232	    0129  C3				 ret
-    233	    012A			 getch endp
-    234
-    235	    012A			 setvid	proc near
-    236	    012A  55				 push bp
-    237	    012B  8B EC				 mov bp, sp
-    238	    012D  50				 push ax
-    239
-    240	    012E  B8 0012			 mov ax, 0012h
-    241	    0131  CD 10				 int 10h
-    242
-    243	    0133  B8 0500			 mov ax, 0500h
-    244	    0136  CD 10				 int 10h
-    245
-    246	    0138  58				 pop ax
-    247	    0139  5D				 pop bp
-    248	    013A  C3				 ret
-    249	    013B			 setvid	endp
-    250
-    251	    013B			 settext proc near
-    252	    013B  55				 push bp
-    253	    013C  8B EC				 mov bp, sp
-    254	    013E  50				 push ax
-    255
-    256	    013F  B8 0003			 mov ax, 0003h
-    257	    0142  CD 10				 int 10h
-    258
-    259	    0144  B8 0500			 mov ax, 0500h
-    260	    0147  CD 10				 int 10h
-    261
-    262	    0149  58				 pop ax
-    263	    014A  5D				 pop bp
-    264	    014B  C3				 ret
-    265	    014C			 settext endp
-    266
-    267	    014C			 setRoundDown proc near
-    268	    014C  55				 push bp
-    269	    014D  8B EC				 mov bp, sp
-    270	    014F  50				 push ax
-    271
-    272						 local @@tmp_cwr: word
-    273
-    274	    0150  9B D9	7E FE			 fstcw @@tmp_cwr
-    275	    0154  8B 46	FE			 mov ax, [@@tmp_cwr]
-    276	    0157  0D 0100			 or ax,	0100h
-    277	    015A  89 46	FE			 mov [@@tmp_cwr], ax
-    278	    015D  D9 6E	FE			 fldcw @@tmp_cwr
-    279
-    280
-    281	    0160  58				 pop ax
-    282	    0161  5D				 pop bp
-    283	    0162  C3				 ret
-    284	    0163			 setRoundDown endp
-    285
-Turbo Assembler	 Version 4.1	    21/11/22 05:43:03	    Page 6
-lab1_3.asm
-
-
-
-    286	    0163			 setRoundUp proc near
-    287	    0163  55				 push bp
-    288	    0164  8B EC				 mov bp, sp
-    289	    0166  50				 push ax
-    290
-    291						 local @@tmp_cwr: word
-    292
-    293	    0167  9B D9	7E FE			 fstcw @@tmp_cwr
-    294	    016B  8B 46	FE			 mov ax, [@@tmp_cwr]
-    295	    016E  0D 0200			 or ax,	0200h
-    296	    0171  89 46	FE			 mov [@@tmp_cwr], ax
-    297	    0174  D9 6E	FE			 fldcw @@tmp_cwr
-    298
-    299	    0177  58				 pop ax
-    300	    0178  5D				 pop bp
-    301	    0179  C3				 ret
-    302	    017A			 setRoundUp endp
-    303
-    304
-    305	    017A			 setRoundNear proc near
-    306	    017A  55				 push bp
-    307	    017B  8B EC				 mov bp, sp
-    308	    017D  50				 push ax
-    309
-    310						 local @@tmp_cwr: word
-    311
-    312	    017E  9B D9	7E FE			 fstcw @@tmp_cwr
-    313	    0182  8B 46	FE			 mov ax, [@@tmp_cwr]
-    314	    0185  25 FCFF			 and ax, 0FCFFh
-    315	    0188  89 46	FE			 mov [@@tmp_cwr], ax
-    316	    018B  D9 6E	FE			 fldcw @@tmp_cwr
-    317
-    318
-    319	    018E  58				 pop ax
-    320	    018F  5D				 pop bp
-    321	    0190  C3				 ret
-    322	    0191			 setRoundNear endp
-    323
-    324	    0191			 point proc near
-    325	    0191  55				 push bp
-    326	    0192  8B EC				 mov bp, sp
-    327	    0194  50				 push ax
-    328	    0195  53				 push bx
-    329	    0196  51				 push cx
-    330	    0197  52				 push dx
-    331
-    332	    0198  B8 0C0A			 mov ax, 0c0Ah
-    333	    019B  BB 0000			 mov bx, 0000h
-    334	    019E  8B 4E	06			 mov cx, [bp + 6]
-    335	    01A1  8B 56	04			 mov dx, [bp + 4]
-    336	    01A4  CD 10				 int 10h
-    337
-    338	    01A6  5A				 pop dx
-    339	    01A7  59				 pop cx
-    340	    01A8  5B				 pop bx
-    341	    01A9  58				 pop ax
-    342	    01AA  5D				 pop bp
-Turbo Assembler	 Version 4.1	    21/11/22 05:43:03	    Page 7
-lab1_3.asm
-
-
-
-    343	    01AB  C3				 ret
-    344	    01AC			 point endp
-    345
-    346	    01AC			 draw_fn proc near
-    347	    01AC  55				 push bp
-    348	    01AD  8B EC				 mov bp, sp
-    349	    01AF  51				 push cx
-    350	    01B0  53				 push bx
-    351	    01B1  52				 push dx
-    352
-    353	    01B2  8B 0E	0F20r			 mov cx, [Wid]
-    354	    01B6				 draw_fn_loop1:
-    355	    01B6  49				 dec cx
-    356	    01B7  8B D9				 mov bx, cx
-    357	    01B9  D1 E3				 shl bx, 1
-    358
-    359	    01BB  8B 97	0A1Cr			 mov dx, Yabs[bx]
-    360	    01BF  51				 push cx
-    361	    01C0  52				 push dx
-    362	    01C1  E8 FFCD			 call point
-    363	    01C4  83 C4	04			 add sp, 4
-    364	    01C7  41				 inc cx
-    365	    01C8  E2 EC				 loop draw_fn_loop1
-    366
-    367	    01CA  5A				 pop dx
-    368	    01CB  5B				 pop bx
-    369	    01CC  59				 pop cx
-    370	    01CD  5D				 pop bp
-    371	    01CE  C3				 ret
-    372	    01CF			 draw_fn endp
-    373
-    374	    01CF			 draw_scr proc near
-    375	    01CF  55				 push bp
-    376	    01D0  8B EC				 mov bp, sp
-    377	    01D2  51				 push cx
-    378
-    379	    01D3  8B 0E	0F20r			 mov cx, [Wid]
-    380	    01D7				 draw_scr_loop1:
-    381	    01D7  49				 dec cx
-    382	    01D8  51				 push cx
-    383	    01D9  6A 00				 push 0
-    384	    01DB  E8 FFB3			 call point
-    385	    01DE  83 C4	04			 add sp, 4
-    386
-    387	    01E1  51				 push cx
-    388	    01E2  68 01DF			 push 479
-    389	    01E5  E8 FFA9			 call point
-    390	    01E8  83 C4	04			 add sp, 4
-    391	    01EB  41				 inc cx
-    392	    01EC  E2 E9				 loop draw_scr_loop1
-    393	    01EE  8B 0E	0F22r			 mov cx, [Hei]
-    394	    01F2				 draw_scr_loop2:
-    395	    01F2  49				 dec cx
-    396
-    397	    01F3  6A 00				 push 0
-    398	    01F5  51				 push cx
-    399	    01F6  E8 FF98			 call point
-Turbo Assembler	 Version 4.1	    21/11/22 05:43:03	    Page 8
-lab1_3.asm
-
-
-
-    400	    01F9  83 C4	04			 add sp, 4
-    401
-    402	    01FC  68 027F			 push 639
-    403	    01FF  51				 push cx
-    404	    0200  E8 FF8E			 call point
-    405	    0203  83 C4	04			 add sp, 4
-    406	    0206  41				 inc cx
-    407	    0207  E2 E9				 loop draw_scr_loop2
-    408
-    409	    0209  59				 pop cx
-    410	    020A  5D				 pop bp
-    411	    020B  C3				 ret
-    412	    020C			 draw_scr endp
-    413
-    414	    020C			 start:
-    415	    020C  B8 0000s			 mov ax, @data
-    416	    020F  8E D8				 mov ds, ax
-    417	    0211  9B DB	E3			 finit
-    418	    0214  E8 FF35			 call setRoundDown
-    419
-    420						 ; init	constatnts
-    421	    0217  D9 06	0004r			 fld B
-    422	    021B  D8 26	0000r			 fsub A
-    423	    021F  DF 06	0F20r			 fild Wid
-    424	    0223  DE F9				 fdivp
-    425	    0225  D9 1E	0008r			 fstp H
-    426	    0229  DD C1				 ffree
-    427	    022B  D9 F6				 fdecstp
-    428
-    429	    022D  E8 FE03			 call fn
-    430	    0230  E8 FEF7			 call setvid
-    431						 ; call	draw_scr
-    432						 ; call	getch
-    433	    0233  E8 FF76			 call draw_fn
-    434	    0236  E8 FEE5			 call getch
-    435	    0239  E8 FEFF			 call settext
-    436
-    437						 ;exit 0
-    438	    023C  B8 4C00			 mov ax,4c00h
-    439	    023F  CD 21				 int 21h
-    440					 end start
-Turbo Assembler	 Version 4.1	    21/11/22 05:43:03	    Page 9
+    229	    0131  83 C4	02			 add sp, 2
+    230	    0134  68 0021r			 push offset crlf
+    231	    0137  E8 FF99			 call puts
+    232	    013A  83 C4	02			 add sp, 2
+    233
+    234	    013D  B8 4C00			 mov ax, 4c00h
+    235	    0140  CD 21				 int 21h
+    236					 end start
+Turbo Assembler	 Version 4.1	    11/01/23 02:31:25	    Page 6
 Symbol Table
 
 
@@ -486,77 +267,54 @@ Symbol Table
 
 Symbol Name		Type   Value			   Cref	(defined at #)
 
-??DATE			Text   "21/11/22"
-??FILENAME		Text   "lab1_3	"
-??TIME			Text   "05:43:03"
+??DATE			Text   "11/01/23"
+??FILENAME		Text   "lab4	"
+??TIME			Text   "02:31:25"
 ??VERSION		Number 040A
 @32BIT			Text   0			   #1
-@@TMP_CWR		Number [DGROUP:BP-0002]		   #272	 274  275  277	278
-@@TMP_CWR		Number [DGROUP:BP-0002]		   #291	 293  294  296	297
-@@TMP_CWR		Number [DGROUP:BP-0002]		   #310	 312  313  315	316
-@CODE			Text   _TEXT			   #1  #1  #25
+@@ABS			Near   _TEXT:0020		   #44
+@@ABS_END		Near   _TEXT:0034		   50  #57
+@@AL0			Near   _TEXT:0082		   94  #110
+@@AL9			Near   _TEXT:0071		   96  #98
+@@AL_ELSE		Near   _TEXT:0093		   97  #124
+@@DIGIT			Near   _TEXT:0046		   #71	140
+@@END_CMP		Near   _TEXT:0098		   91  103  109	 116  122  #128
+@@END_INC		Near   _TEXT:00B2		   146	#150
+@@END_PROC		Near   _TEXT:00A4		   131	#142
+@@NINE_CH		Near   _TEXT:0079		   100	#104
+@@NORM			Near   _TEXT:0034		   #58	68
+@@NORM_END		Near   _TEXT:0045		   63  #69
+@@POINT_END		Near   _TEXT:0062		   79  82  #88
+@@POINT_EQU		Near   _TEXT:005D		   80  #84
+@@ZERO_CH		Near   _TEXT:008A		   113	#117
+@CODE			Text   _TEXT			   #1  #1  #18
 @CODESIZE		Text   0			   #1
-@CPU			Text   1F1FH			   #3
-@CURSEG			Text   _TEXT			   #7  #25
-@DATA			Text   DGROUP			   #1  415
+@CPU			Text   0F0FH			   #3
+@CURSEG			Text   _TEXT			   #7  #18
+@DATA			Text   DGROUP			   #1  198
 @DATASIZE		Text   0			   #1
-@FILENAME		Text   LAB1_3
+@FILENAME		Text   LAB4
 @INTERFACE		Text   000H			   #1
 @MODEL			Text   2			   #1
 @STACK			Text   DGROUP			   #1
-@WORDSIZE		Text   2			   #3  #7  #25
-A			Dword  DGROUP:0000		   #8  422
-B			Dword  DGROUP:0004		   #9  82  421
-CRLF			Byte   DGROUP:0F24		   #21
-CURR			Dword  DGROUP:000C		   #11	83  92	98  101
-DRAW_FN			Near   _TEXT:01AC		   #346	 433
-DRAW_FN_LOOP1		Near   _TEXT:01B6		   #354	 365
-DRAW_SCR		Near   _TEXT:01CF		   #374
-DRAW_SCR_LOOP1		Near   _TEXT:01D7		   #380	 392
-DRAW_SCR_LOOP2		Near   _TEXT:01F2		   #394	 407
-FN			Near   _TEXT:0033		   #73	429
-FN_CALC			Near   _TEXT:0020		   #57	94
-FN_LOOP1		Near   _TEXT:0045		   #85	104
-FN_LOOP2		Near   _TEXT:007B		   #112	 149
-FN_LOOP2_ENDMAX		Near   _TEXT:009B		   125	126  #128
-FN_LOOP2_ENDMIN		Near   _TEXT:00AF		   138	#141
-FN_LOOP3		Near   _TEXT:00D5		   #160	 177
-GETCH			Near   _TEXT:011E		   #222	 434
-GETS			Near   _TEXT:0103		   #186
-H			Dword  DGROUP:0008		   #10	99  425
-HEI			Word   DGROUP:0F22		   #20	153  170  393
-ICWR			Word   DGROUP:0F1C		   #17
-ICWR_			Word   DGROUP:0F1E		   #18
-K			Dword  DGROUP:0A18		   #15	156  165
-MAX			Dword  DGROUP:0A14		   #14	107  118  127  151
-MIN			Dword  DGROUP:0A10		   #13	108  131  140  152  168
-POINT			Near   _TEXT:0191		   #324	 362  384  389	399  404
-PUTS			Near   _TEXT:010D		   #206
-REPLACE			Near   _TEXT:0000		   #26
-REPLACE_WHILE		Near   _TEXT:000E		   #36	45
-REPLACE_WHILE_END	Near   _TEXT:001C		   38  #46
-REPLACE_WHILE_SKIP	Near   _TEXT:0019		   41  #43
-SETROUNDDOWN		Near   _TEXT:014C		   #267	 418
-SETROUNDNEAR		Near   _TEXT:017A		   157	#305
-SETROUNDUP		Near   _TEXT:0163		   #286
-SETTEXT			Near   _TEXT:013B		   #251	 435
-Turbo Assembler	 Version 4.1	    21/11/22 05:43:03	    Page 10
-Symbol Table
-
-
-
-SETVID			Near   _TEXT:012A		   #235	 430
-START			Near   _TEXT:020C		   #414	 440
-STOF			Near   _TEXT:0108		   #196
-T1			Byte   DGROUP:0F27		   #22
-WID			Word   DGROUP:0F20		   #19	81  111	 159  353  379	423
-Y			Dword  DGROUP:0010		   #12	96  106	 117  167
-YABS			Word   DGROUP:0A1C		   #16	174  359
+@WORDSIZE		Text   2			   #3  #7  #18
+BASE			Word   DGROUP:0025		   #16	38  60	65  75
+CRLF			Byte   DGROUP:0021		   #14	215  230
+DIG_CNT			Byte   DGROUP:0024		   #15
+FLOAT1			Qword  DGROUP:0000		   #8  207
+FLOAT2			Qword  DGROUP:0008		   #9  222
+FTOS			Near   _TEXT:0000		   #22	208  223
+MSG			Byte   DGROUP:0012		   #13	204  212  219  227
+MSG_LEN			Byte   DGROUP:0011		   #12	205  220
+MSG_MAX_LEN		Byte   DGROUP:0010		   #11
+PUTS			Near   _TEXT:00D3		   #181	 213  216  228	231
+SETROUNDDOWN		Near   _TEXT:00BD		   #163	 202
+START			Near   _TEXT:00E4		   #197	 236
 
 Groups & Segments	Bit Size Align	Combine	Class	   Cref	(defined at #)
 
-DGROUP			Group				   #1  1  415
+DGROUP			Group				   #1  1  198
   STACK			16  0100 Para	Stack	STACK	   #4
-  _DATA			16  0F36 Word	Public	DATA	   #1  #7
-_TEXT			16  0241 Word	Public	CODE	   #1  1  #25  25
+  _DATA			16  0027 Word	Public	DATA	   #1  #7
+_TEXT			16  0142 Word	Public	CODE	   #1  1  #18  18
 

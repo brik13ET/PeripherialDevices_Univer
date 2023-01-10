@@ -5,22 +5,15 @@ LOCALS
 org 100h
 
 .data
+	float1		dq 420.01337
+	float2		dq -420.01337
 
-	float		dq 420.1337
-	decimal 	dd 0
-	r_decimal 	dd 0
-
-	whole 		dw 0
-	r_whole 	dw 0
 	msg_max_len db 15
 	msg_len 	db 15
 	msg 		db 15 dup(?)
 	crlf		db 13,10,'$'
 	dig_cnt 	db 0
 	base		dw 10
-	prec		db 4
-
-
 
 .code
 
@@ -29,7 +22,7 @@ org 100h
 ftos proc near
 	push bp
 	mov bp, sp
-	
+	push 0
 	push ax
 	push bx
 	push cx
@@ -37,124 +30,132 @@ ftos proc near
 	push di
 	push si
 
-	mov cx, [bp+4]
-	mov bx, [bp+6]
+	mov bx, [bp + 6]
+	xor cx, cx
+	xor si, si
+	mov dh, 5
 
-	fist whole
+	mov ax, base
+	dec ax
+	mov [bp], ax
+	fild word ptr [bp]
+	fxch
 
-	push cx
-	movzx cx, prec
-	fisub whole
-	getDecimal:
-		fimul base
-	loop getDecimal
-	pop cx
+	@@abs:
+	fldz
+	fxch st(1)
+	fcom st(1)
+	fstsw ax
+	sahf
+	ja @@abs_end
 
-	fistp decimal
+	mov byte ptr [bx], '-'
+	inc bx
+	fchs
+	mov dl, 1
+	
+	@@abs_end:
+	@@norm:
+	
+	ficom base
+	fstsw ax
+	sahf
+	jb @@norm_end
 
-	@@25:
-		cmp [whole], 0
-		je @@30
+	fidiv base
+	inc cx
 
-		mov ax, r_whole
-		xor dx, dx
-		mul base
-		mov r_whole, ax
+	jmp @@norm
+	@@norm_end:
+	inc cx
+	@@digit:
+	
+	fist word ptr [bp]
+	fisub word ptr [bp]
+	fimul base
+	mov ax, [bp]
 
-		mov ax, whole
-		xor dx, dx
-		div base
-		add r_whole, dx
-		mov whole, ax
-		inc dig_cnt
+	cmp cx, 0
+	jl @@point_end
+	je @@point_equ
+	dec cx
+	jmp @@point_end
+	
+	@@point_equ:
+	mov byte ptr [bx], '.'
+	dec cx
+	inc bx
+	@@point_end:
 
-		jmp @@25
-	@@30:
+	cmp cx, 0ffffh
+	jne @@end_cmp
 
-	@@32:
-		cmp dig_cnt, 0
-		jbe @@39
-		cmp si, cx
-		jae @@39
+	cmp al, 0
+	je @@al0
+	cmp al, 9
+	je @@al9
+	jmp @@al_else
+	@@al9:
+	cmp dh, 9
+	jne @@nine_ch
 
-		mov ax, r_whole
-		xor dx, dx
-		div base
-		add dx, '0'
-		mov bx[si], dl
-		mov r_whole, ax
-		inc si
-		dec dig_cnt
-
-		jmp @@32
-	@@39:
-
-	cmp si, 0
-	jne @@44
-	mov byte ptr bx[si], '0'
 	inc si
+	jmp @@end_cmp
+	@@nine_ch:
 
-	@@44:
-	cmp si, cx
-	jae return
+	mov di, bx
+	mov si, 1
+	mov dh, 9
+	jmp @@end_cmp
+	@@al0:
 
-	mov byte ptr bx[si], '.'
+	cmp dh, 0
+	jne @@zero_ch
+
 	inc si
+	jmp @@end_cmp
+	@@zero_ch:
 
-	cmp si, cx
-	jae return
+	mov di, bx
+	mov si, 1
+	mov dh, 0
+	jmp @@end_cmp
 
-	mov dig_cnt, 0
-	@@55:
-	cmp decimal, 0
-	jbe @@60
+	@@al_else:
+	mov si, 0
+	mov dh, 5 ; not 0 and not 9
 
-	mov ax,word ptr  r_decimal
-	xor dx, dx
-	mul base
-	mov word ptr r_decimal, ax
+	@@end_cmp:
 
-	mov ax,word ptr  decimal
-	xor dx, dx
-	div base
-	add word ptr r_decimal, dx
-	mov word ptr decimal, ax
-	inc dig_cnt
+	cmp si, 3
+	ja @@end_proc
 
-	jmp @@55
-	@@60:	
 
-	@@62:
-	cmp si, cx
-	jae @@69
+	; TODO: exit on si >= 3 (@@end_proc)
 
-	mov ax,word ptr  r_decimal
-	xor dx, dx
-	div base
-	add dx, '0'
-	mov bx[si], dl
-	mov word ptr r_decimal, ax
-	inc si
-	dec dig_cnt
+	add al, '0'
+	mov [bx], al
+	inc bx
 
-	jmp @@62
-	@@69:
+	jmp @@digit
 
-	cmp si, cx
-	jae return
+	@@end_proc:
 
-	mov byte ptr bx[si], "$"
+	mov byte ptr [di], '$'
+	cmp dh, 0
+	je @@end_inc
+	cmp dl, 1
+	dec di
+	inc byte ptr [di]
+	@@end_inc:
 
-return:
-	mov bx, cx
-	dec bx
-	mov msg[bx], "$"
 	pop si
 	pop di
 	pop dx
 	pop cx
 	pop bx
 	pop ax
+	add sp, 2
 	pop bp
 	ret
 ftos endp
@@ -162,18 +163,17 @@ ftos endp
 setRoundDown proc near
 	push bp
 	mov bp, sp
-	push ax
+	push 0
 
-	local @@tmp_cwr: word
+	
 
-	fstcw @@tmp_cwr
-	mov ax, [@@tmp_cwr]
-	or ax, 0100h
-	mov [@@tmp_cwr], ax
-	fldcw @@tmp_cwr
+	fstcw [bp]
+	or word ptr [bp], 0C00h
+	; mov [bp], ax
+	fldcw word ptr [bp]
 
 
-	pop ax
+	add sp, 2
 	pop bp
 	ret
 setRoundDown endp
@@ -204,7 +204,22 @@ start:
 	push offset msg
 	movzx dx, msg_len
 	push dx
-	fld float
+	fld float1
+	call ftos
+	add sp, 2
+	ffree
+
+	push offset msg
+	call puts
+	add sp, 2
+	push offset crlf
+	call puts
+	add sp, 2
+
+	push offset msg
+	movzx dx, msg_len
+	push dx
+	fld float2
 	call ftos
 	add sp, 2
 	ffree
